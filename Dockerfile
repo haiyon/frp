@@ -36,4 +36,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
 
 EXPOSE 7000 7500
 
-ENTRYPOINT ["/usr/bin/${TARGET}", "-c", "/etc/frp/${TARGET}.toml"]
+ENTRYPOINT /usr/bin/${TARGET} -c /etc/frp/${TARGET}.toml
