@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM alpine:3.19 AS builder
+FROM --platform=$BUILDPLATFORM alpine:3 AS builder
 
 ARG TARGET VERSION TARGETOS TARGETARCH
 ARG FRP_FILE=frp_${VERSION}_${TARGETOS}_${TARGETARCH}
@@ -12,7 +12,7 @@ RUN wget -q https://github.com/fatedier/frp/releases/download/v${VERSION}/${FRP_
   && cp ./${TARGET}*.toml /tmp/
 
 # Final stage
-FROM alpine:3.19
+FROM alpine:3
 ARG TARGET
 ENV TARGET=${TARGET}
 

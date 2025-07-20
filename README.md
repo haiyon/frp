@@ -15,12 +15,12 @@ Simply run the build script:
 You can customize the build process using environment variables:
 
 ```bash
-VERSION=0.61.1 REGISTRY=ghcr.io NAMESPACE=myorg ./build.sh
+VERSION=0.63.0 REGISTRY=ghcr.io NAMESPACE=myorg ./build.sh
 ```
 
 Available environment variables:
 
-- `VERSION`: FRP version (default: 0.61.1)
+- `VERSION`: FRP version
 - `REGISTRY`: Docker registry (default: docker.io)
 - `NAMESPACE`: Image namespace (default: haiyon)
 - `PLATFORMS`: Target platforms (default: linux/amd64,linux/arm64)

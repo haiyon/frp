@@ -3,7 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 # Configuration
-VERSION="${VERSION:-0.61.1}"
+VERSION="${VERSION:-0.63.0}"
 REGISTRY="${REGISTRY:-docker.io}"
 NAMESPACE="${NAMESPACE:-haiyon}"
 PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
