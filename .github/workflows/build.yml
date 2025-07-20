@@ -1,0 +1,142 @@
+name: Build and Push FRP Docker Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "FRP Version (e.g., 0.63.0)"
+        required: true
+        default: "0.63.0"
+        type: string
+      registry:
+        description: "Docker Registry"
+        required: false
+        default: "docker.io"
+        type: choice
+        options:
+          - "docker.io"
+          - "ghcr.io"
+      namespace:
+        description: "Image Namespace"
+        required: false
+        default: "haiyon"
+        type: string
+      platforms:
+        description: "Target Platforms"
+        required: false
+        default: "linux/amd64,linux/arm64"
+        type: string
+
+  push:
+    tags:
+      - "v*"
+
+  schedule:
+    - cron: "0 2 * * 0"
+
+env:
+  REGISTRY: ${{ inputs.registry || 'docker.io' }}
+  NAMESPACE: ${{ inputs.namespace || 'haiyon' }}
+  PLATFORMS: ${{ inputs.platforms || 'linux/amd64,linux/arm64' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [frps, frpc]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == "push" && "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"
+            echo "VERSION=${VERSION}" >> $GITHUB_OUTPUT
+          else
+            LATEST_VERSION=$(curl -s https://api.github.com/repos/fatedier/frp/releases/latest | jq -r .tag_name | sed 's/^v//')
+            echo "VERSION=${LATEST_VERSION}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Login to Docker Hub
+        if: env.REGISTRY == 'docker.io'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GHCR
+        if: env.REGISTRY == 'ghcr.io'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ matrix.target }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=v${{ steps.version.outputs.VERSION }}
+            type=ref,event=tag
+          labels: |
+            org.opencontainers.image.title=FRP ${{ matrix.target }}
+            org.opencontainers.image.description=Fast Reverse Proxy ${{ matrix.target }}
+            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
+
+      - name: Verify FRP release
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://github.com/fatedier/frp/releases/tag/v${VERSION}")
+
+          if [[ "$HTTP_CODE" != "200" ]]; then
+            echo "FRP version v${VERSION} not found"
+            exit 1
+          fi
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frp
+          file: ./frp/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            TARGET=${{ matrix.target }}
+            VERSION=${{ steps.version.outputs.VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image
+        run: |
+          MAIN_TAG="${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ matrix.target }}:v${{ steps.version.outputs.VERSION }}"
+          sleep 10
+          docker buildx imagetools inspect "${MAIN_TAG}" > /dev/null
+
+  summary:
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Build summary
+        run: |
+          echo "## FRP Docker Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry:** ${{ env.REGISTRY }}/${{ env.NAMESPACE }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Platforms:** ${{ env.PLATFORMS }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ needs.build.result == 'success' && '✅ Success' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
