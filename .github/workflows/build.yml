@@ -4,35 +4,35 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "FRP Version (e.g., 0.63.0)"
+        description: 'FRP Version (e.g., 0.63.0)'
         required: true
-        default: "0.63.0"
+        default: '0.63.0'
         type: string
       registry:
-        description: "Docker Registry"
+        description: 'Docker Registry'
         required: false
-        default: "docker.io"
+        default: 'docker.io'
         type: choice
         options:
-          - "docker.io"
-          - "ghcr.io"
+          - 'docker.io'
+          - 'ghcr.io'
       namespace:
-        description: "Image Namespace"
+        description: 'Image Namespace'
         required: false
-        default: "haiyon"
+        default: 'haiyon'
         type: string
       platforms:
-        description: "Target Platforms"
+        description: 'Target Platforms'
         required: false
-        default: "linux/amd64,linux/arm64"
+        default: 'linux/amd64,linux/arm64'
         type: string
 
   push:
     tags:
-      - "v*"
+      - 'v*'
 
-  schedule:
-    - cron: "0 2 * * 0"
+  # schedule:
+  #   - cron: '0 2 * * 0'
 
 env:
   REGISTRY: ${{ inputs.registry || 'docker.io' }}
@@ -110,8 +110,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./frp
-          file: ./frp/Dockerfile
+          context: .
+          file: ./Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
